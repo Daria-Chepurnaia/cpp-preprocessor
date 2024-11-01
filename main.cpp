@@ -1,92 +1,6 @@
 #include <cassert>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <regex>
-#include <sstream>
-#include <string>
-#include <vector>
- 
-using namespace std;
-using filesystem::path;
- 
-path operator""_p(const char* data, std::size_t sz) {
-    return path(data, data + sz);
-}
 
-bool RecPreprocess(const path& in_file, ostream& ostr, const vector<path>& include_directories) {
-    ifstream input(in_file);
-    if (!input.is_open()) return false;
-    string str; 
-    int current_line = 1;
-    while (getline(input, str)) {         
-        
-        static regex find_file(R"/(\s*#\s*include\s*"([^"]*)"\s*)/");
-        smatch file_match;
-        bool not_found = true;
-        if (regex_match(str, file_match, find_file)) {
-            path p = string(file_match[1]);
-            path file_path = in_file.parent_path() / p;
-            if (filesystem::exists(file_path)) {
-                not_found = false;
-                if (!RecPreprocess(file_path, ostr, include_directories)) return false;
-            } else {
-                for (path dir_path : include_directories) {
-                    dir_path = dir_path / p; 
-                    if (filesystem::exists(dir_path)) {                        
-                        not_found = false;                       
-                        if (!RecPreprocess(dir_path, ostr, include_directories)) return false;
-                        break;
-                    }
-                }
-            }
-            if (not_found) {
-                cout << "unknown include file " << p.filename().string() << " at file " << in_file.string() << " at line " << current_line << endl;
-                return false;
-            }
-        }
-        static regex find_lib(R"/(\s*#\s*include\s*<([^>]*)>\s*)/");
-        smatch lib_match;
-        if (regex_match(str, lib_match, find_lib)) {
-            path p = string(lib_match[1]);            
-            for (path dir_path : include_directories) {
-                dir_path = dir_path / p;
- 
-                if (filesystem::exists(dir_path)) {
-                    not_found = false;
-                    if (!RecPreprocess(dir_path, ostr, include_directories)) return false;
-                    break;
-                }
-            }
-            if (not_found) {              
-                cout << "unknown include file " << p.filename().string() << " at file " << in_file.string() << " at line " << current_line << endl;
-                return false;
-            }           
-        }
-        current_line += 1;
-        if (!regex_match(str, file_match, find_file) && !regex_match(str, lib_match, find_lib)) ostr << str << endl;        
-    }
-    input.close();
-    return true;
-}
-
-bool Preprocess(const path& in_file, const path& out_file, const vector<path>& include_directories) {
- 
-    ifstream input(in_file);
-    if (!input.is_open()) return false;
- 
-    fstream output(out_file, ios::out | ios::app);
-    
-    return RecPreprocess(in_file, output, include_directories);
-}
-
- 
-string GetFileContents(string file) {
-    ifstream stream(file);
- 
-    // конструируем string по двум итераторам
-    return { (istreambuf_iterator<char>(stream)), istreambuf_iterator<char>() };
-}
+#include "preprocessor.h"
  
 void Test() {
     error_code err;
@@ -153,9 +67,11 @@ void Test() {
         "    cout << \"hello, world!\" << endl;\n"s;
  
     assert(GetFileContents("sources/a.in"s) == test_out.str());
-    
+    std::cout << "passed0";
 }
- 
+
+// Main function to run tests
 int main() {
-    Test();
+    Test();    
+    return 0;
 }
